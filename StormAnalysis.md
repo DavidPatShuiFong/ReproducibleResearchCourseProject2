@@ -20,26 +20,6 @@ The data for this assignment is Storm Data from the National Weather Service. Do
 ```r
 ### start necessary libraries
 library(tidyverse)
-```
-
-```
-## ── Attaching packages ────────────────────────────────────── tidyverse 1.2.1 ──
-```
-
-```
-## ✔ ggplot2 2.2.1     ✔ purrr   0.2.4
-## ✔ tibble  1.4.2     ✔ dplyr   0.7.4
-## ✔ tidyr   0.8.0     ✔ stringr 1.3.0
-## ✔ readr   1.1.1     ✔ forcats 0.3.0
-```
-
-```
-## ── Conflicts ───────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()
-```
-
-```r
 library(dplyr)
 library(ggplot2)
 
@@ -60,21 +40,44 @@ if (!file.exists('StormData.csv.bz2')) {
   }
 }
 
-StormData <- read.csv(bzfile('StormData.csv.bz2'))
+StormData <- as.tibble(read.csv(bzfile('StormData.csv.bz2')))
 ```
 
 Variables of interest
 
 Variable    | Description                 
+============|=============================
+BGN_DATE    | date of event starting
+BGN_TIME    | time of event starting
+TIME_ZONE   | time zone of event
 ------------|-----------------------------
-BGN_DATE    | date of event starting      
-FATALATIES  | number of fatalities        
-INJURIES    | number of injuries          
-PROPDMG     | value of damage in dollars
+EVTYPE      | type of event
+------------|-----------------------------
+FATALITIES  | number of fatalities        
+INJURIES    | number of injuries
+------------|-----------------------------
+PROPDMG     | value of property damage in dollars
+PROPDMGEXP  | property damage dollar multiplier (K thousands, M millions, B billions)
+------------|-----------------------------
+CROPDMG     | value of crop damage in dollars
+CROPDMGEXP  | crop damage dollar multiplier (K thousands, M millions, B billions)
 
 
+```r
+print(unique(StormData$TIME_ZONE))
+```
 
-PROPDMGEXP - property damage dollar multiplier (K thousands, M millions, B billions)
-CROPDMG
-CROPDMGEXP
+```
+##  [1] CST EST PST MST CDT PDT EDT UNK HST GMT MDT AST ADT CSt ESt CSC SCT
+## [18] ESY UTC SST AKS GST
+## 22 Levels: ADT AKS AST CDT CSC CSt CST EDT ESt EST ESY GMT GST HST ... UTC
+```
 
+
+```r
+StormData$BEGIN_TIME <- strptime(paste(sub(' .*','',StormData$BGN_DATE),
+                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
+
+timezones <- c(-3,-9,-4,-5)
+names(timezones) <- c('ADT','AKS','AST','CDT')
+```

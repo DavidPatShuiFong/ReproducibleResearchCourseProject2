@@ -134,16 +134,8 @@ $(document).ready(function () {
 <div id="data-processing" class="section level2">
 <h2>Data Processing</h2>
 <pre class="r"><code>### start necessary libraries
-library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages ────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
-<pre><code>## ✔ ggplot2 2.2.1     ✔ purrr   0.2.4
-## ✔ tibble  1.4.2     ✔ dplyr   0.7.4
-## ✔ tidyr   0.8.0     ✔ stringr 1.3.0
-## ✔ readr   1.1.1     ✔ forcats 0.3.0</code></pre>
-<pre><code>## ── Conflicts ───────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()</code></pre>
-<pre class="r"><code>library(dplyr)
+library(tidyverse)
+library(dplyr)
 library(ggplot2)
 
 ### set figure save path to figure/
@@ -159,35 +151,20 @@ if (!file.exists('StormData.csv.bz2')) {
   }
 }
 
-StormData &lt;- read.csv(bzfile('StormData.csv.bz2'))</code></pre>
+StormData &lt;- as.tibble(read.csv(bzfile('StormData.csv.bz2')))</code></pre>
 <p>Variables of interest</p>
-<table>
-<thead>
-<tr class="header">
-<th>Variable</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>BGN_DATE</td>
-<td>date of event starting</td>
-</tr>
-<tr class="even">
-<td>FATALATIES</td>
-<td>number of fatalities</td>
-</tr>
-<tr class="odd">
-<td>INJURIES</td>
-<td>number of injuries</td>
-</tr>
-<tr class="even">
-<td>PROPDMG</td>
-<td>value of damage in dollars</td>
-</tr>
-</tbody>
-</table>
-<p>PROPDMGEXP - property damage dollar multiplier (K thousands, M millions, B billions) CROPDMG CROPDMGEXP</p>
+<p>Variable | Description<br />
+============|============================= BGN_DATE | date of event starting BGN_TIME | time of event starting TIME_ZONE | time zone of event ————|—————————– EVTYPE | type of event ————|—————————– FATALITIES | number of fatalities<br />
+INJURIES | number of injuries ————|—————————– PROPDMG | value of property damage in dollars PROPDMGEXP | property damage dollar multiplier (K thousands, M millions, B billions) ————|—————————– CROPDMG | value of crop damage in dollars CROPDMGEXP | crop damage dollar multiplier (K thousands, M millions, B billions)</p>
+<pre class="r"><code>print(unique(StormData$TIME_ZONE))</code></pre>
+<pre><code>##  [1] CST EST PST MST CDT PDT EDT UNK HST GMT MDT AST ADT CSt ESt CSC SCT
+## [18] ESY UTC SST AKS GST
+## 22 Levels: ADT AKS AST CDT CSC CSt CST EDT ESt EST ESY GMT GST HST ... UTC</code></pre>
+<pre class="r"><code>StormData$BEGIN_TIME &lt;- strptime(paste(sub(' .*','',StormData$BGN_DATE),
+                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
+
+timezones &lt;- c(-3,-9,-4,-5)
+names(timezones) &lt;- c('ADT','AKS','AST','CDT')</code></pre>
 </div>
 
 

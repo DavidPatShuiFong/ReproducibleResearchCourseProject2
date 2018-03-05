@@ -47,13 +47,55 @@ Variables of interest
 
 Variable    | Description                 
 ------------|-----------------------------
-BGN_DATE    | date of event starting      
-FATALATIES  | number of fatalities        
-INJURIES    | number of injuries          
+BGN_DATE    | date of event starting
+BGN_TIME    | time of event starting
+TIME_ZONE   | time zone of event
+COUNTYNAME  | name of county
+STATE       | state of the United STates
+EVTYPE      | type of event
+FATALITIES  | number of fatalities        
+INJURIES    | number of injuries
 PROPDMG     | value of property damage in dollars
 PROPDMGEXP  | property damage dollar multiplier (K thousands, M millions, B billions)
 CROPDMG     | value of crop damage in dollars
 CROPDMGEXP  | crop damage dollar multiplier (K thousands, M millions, B billions)
+REFNUM      | unique reference number for event
 
 
+``` {r}
+print(unique(StormData$TIME_ZONE))
+```
+``` {r}
 
+### some timezone names use 'lower-case' characters, convert all to upper-case
+StormData$TIME_ZONE <- as.factor(toupper(StormData$TIME_ZONE))
+
+```
+
+```{r}
+print(StormData[StormData$TIME_ZONE == 'UNK', c('COUNTYNAME','STATE','REFNUM')])
+```
+``` {r}
+### replace missing timezones
+
+### Oconee County, Georgia
+StormData[REFNUM == 23087,]$TIME_ZONE <- 'EST'
+### Hawaii country, Hawaii
+StormData[REFNUM == 27702,]$TIME_ZONE <- 'HST'
+### Coles county, Illinois
+StormData[REFNUM == 30669,]$TIME_ZONE <- 'CST'
+
+
+```
+
+``` {r}
+timezones <- c(-3,-9,-4,-5,-9,-5,-6)
+names(timezones) <- c('ADT','AKS','AST','CDT','HST','EST','CST')
+```
+
+``` {r}
+
+StormData$BEGIN_TIME <- strptime(paste(sub(' .*','',StormData$BGN_DATE),
+                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
+
+```
