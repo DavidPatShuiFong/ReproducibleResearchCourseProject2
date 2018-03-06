@@ -1,18 +1,23 @@
 ---
-title: "Reproducible Research: Peer Assessment 2"
-output: 
+title: 'Reproducible Research: Peer Assessment 2'
+output:
+  pdf_document: default
   html_document:
-    keep_md: true
+    keep_md: yes
 ---
 
-# Project
+# Storm events most harmful to population health and economic damage in the United States, 1997 to 2011
 
-Goal - To explore the NOAA Storm Database regarding severe weather events.
+## Synopsis
 
-1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
-2. Across the United States, which types of events have the greatest economic consequences?
+The three major causes of storm-related mortality and morbidity in the United States are **excessive heat** (18.0%), **tornados** (15.2%) and **flash flooding** (8.1%). Similar events are also among the three major causes of storm-related injuries (**tornados** 33.0%, **flood** 11.2% and **excessive heat** 10.5%).
 
-The data for this assignment is Storm Data from the National Weather Service. Documentation for the data can be found at the [National Weather Service](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+Total storm-related fatalities are approximately 650 deaths annually.
+There are approximately 4025 storm-related injuries annually.
+
+The three storm-related events causing the most economic damage are **flood** (34.3%), **hurricanes** (21.2%) and **storm surges** (15.0%). Total annual economic damage totals approximately $28.7 billion per year.
+
+Crop damage, which is a subset of total economic damage, is also significantly affected by **drought**, which causes about 36% of the total $2.4 billion of storm-related crop damage occurring annually.
 
 ## Data Processing
 
@@ -27,10 +32,13 @@ library(knitr)
 
 ### set figure save path to figure/
 knitr::opts_chunk$set(fig.path = 'figure/')
+knitr::opts_chunk$set(fig.width=12, fig.height=8) 
 
 ```
 
-## Download data
+### Download data
+
+Storm Data is from the National Weather Service. Documentation for the data can be found at the [National Weather Service](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
 
 Data comes in the form of a comma-separated-value file compressed via the bzip2 algorithm.
 
@@ -43,7 +51,6 @@ if (!file.exists('StormData.csv.bz2')) {
 }
 
 StormData <- as.tibble(read.csv(bzfile('StormData.csv.bz2')))
-
 ```
 
 Variables of interest
@@ -87,9 +94,9 @@ StormData$BGN_calcTIME[invalid.time.list] <-
   strftime(strptime(StormData[invalid.time.list,]$BGN_calcTIME,'%H:%M'), '%I:%M:%S %p')
 
 ### some times still remain invalid
-print('Invalid times to be manually adjusted')
-print(StormData[is.na(StormData$BGN_calcTIME),c('BGN_TIME','COUNTYNAME','STATE','REFNUM')])
-### these times are 'impossible' times are 19:90 hr, or sometimes subsituted a '0 (zero)' for 'O (letter)'
+kable(StormData[is.na(StormData$BGN_calcTIME),c('BGN_TIME','COUNTYNAME','STATE','REFNUM')],
+      title = 'Invalid times to be manually adjusted')
+### these times are 'impossible' e.g. 19:90 hr, or sometimes subsituted a '0 (zero)' for 'O (letter)'
 ### manually adjust these times, assuming simple transposition or substitution errors
 StormData$BGN_calcTIME[StormData$REFNUM == 197399] <- '07:09:00 PM' ### was 1990
 StormData$BGN_calcTIME[StormData$REFNUM == 223421] <- '12:01:00 AM' ### was 9999
@@ -102,12 +109,12 @@ StormData$BEGIN_TIME <- as.POSIXct(strptime(paste(sub(' .*','',StormData$BGN_DAT
                                        StormData$BGN_calcTIME),'%m/%d/%Y %I:%M:%S %p'))
 ```
 
-**TIME_ZONE** information, in particular, requires tidying up and adjustment.
+#### **TIME_ZONE** information, in particular, requires tidying up and adjustment.
 
 List all current timezones, and standardize capitalization
 
 ``` {r}
-print(unique(StormData$TIME_ZONE))
+kable(unique(StormData$TIME_ZONE))
 ```
 ``` {r}
 
@@ -116,13 +123,12 @@ StormData$TIME_ZONE <- as.factor(toupper(StormData$TIME_ZONE))
 
 ```
 
-List records with dubious timezone names
-
 ```{r, echo=TRUE}
-print(StormData[StormData$TIME_ZONE %in% c('UNK','CSC','ESY','SCT'), c('COUNTYNAME','STATE','TIME_ZONE','REFNUM')])
+kable(StormData[StormData$TIME_ZONE %in% c('UNK','CSC','ESY','SCT'), c('COUNTYNAME','STATE','TIME_ZONE','REFNUM')],
+      title = 'List of records with dubious timezone names')
 ```
 
-Fill in corrected timezones.
+#### Correct/adjust timezones.
 
 Convert 'daylight saving' timezones to 'standard' timezones, as Lubridate adjusts for daylight saving times automatically.
 
@@ -204,7 +210,7 @@ not be merged into 'WIND', although arguably some of these close synonyms are th
 
 ``` {r}
 
-### Most revents are recorded in capitals ('upper case'), but some are recorded in mixed (upper and lower) case
+### Most events are recorded in capitals ('upper case'), but some are recorded in mixed (upper and lower) case
 ### Covert all to upper case, strip all numbers, periods and trailing/leading whitespace
 ### numbers and parentheses are often used to describe sub-types within an event type e.g. size of hail
 ### there are some subtypes which are not yet merged with this logic e.g. 'G45' sub-types
@@ -234,9 +240,9 @@ for (events in synonyms) {
 }
 ```
 
-### Calculating economic damage
+### Economic damage value calculations
 
-First need to calculate 'true' dollar values of economic damage, combining
+Calculate 'true' dollar values of economic damage, combining
 **PROPDMG** with **PROPDMGEXP** and **CROPDMG** and **CROPDMGEXP**
 
 In [National Weather Service](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
@@ -270,8 +276,10 @@ print(head(frequent.events,20))
 Plot the yearly event count for the top ten events,
 and the total event count (the total event count includes both 'common' and 'uncommon' events)
 
-``` {r}
+In order to make comparison easier, the event counts are 'normalized' to the 2011 counts
+i.e. the 2011 counts are the 'baseline'.
 
+``` {r warning=FALSE}
 # the ten most frequent events
 most.frequent.events <- as.list(as.character(frequent.events[1:10,]$EVTYPE))
 
@@ -309,9 +317,8 @@ ggplot(data=event.count,aes(x=event.year,y=event.norm,group=EVTYPE, colour=EVTYP
   labs(title = "Ten most frequent storm events by year, and total events, from 1950 to 2011",
        subtitle = "NOAA storm database. Yearly event frequency in comparison to 2011 event frequency") +
   labs(x = "Year", y = "Frequency in comparison to 2011 frequency") +
-  theme(legend.position=c(0.2,0.7))
-
-
+  guides(fill = guide_legend(title="")) +
+  theme(legend.position=c(0.2,0.6))
 ```
 
 Many of the frequent events are not recorded in the current form until at the mid-1990s.
@@ -320,23 +327,24 @@ Many of the frequent events are not recorded in the current form until at the mi
 Restrict data analysis from 1997 to 2011 (fifteen years in total)
 
 ``` {r}
-
 StormSubset <- StormData[year(StormData$BEGIN_TIME)>=1997,
                          c('COUNTYNAME','STATE','EVTYPE','FATALITIES','INJURIES',
                            'PROPDMG','PROPDMGEXP','CROPDMG','CROPDMGEXP',
-                           'REFNUM','BEGIN_TIME')]
+                           'REFNUM','PropertyValue','CropValue','BEGIN_TIME')]
 
 
 
 ```
 
-## Which types of events are most harmful with respect to population health?
+
+## Results
+
+### Which types of events are most harmful with respect to population health?
 
 Rank the twenty events with the greatest number of fatalities or injuries per year.
 Population health harm contained in variables **FATALITIES** and **INJURIES**.
 
 ``` {r}
-
 ### calculate the sum of fatalities and injuries for each event for each year
 HealthSum <- StormSubset %>%
   mutate(event.year = year(BEGIN_TIME)) %>%
@@ -355,7 +363,7 @@ HealthMean <- HealthSum %>%
 kable(HealthMean[1:20,c('EVTYPE','mean_fatalities','proportion_fatalities')], caption = 'Weather events causing most fatalities, annual mean fatalities, and percentage of fatalities caused by event')
 
 total_mean_fatalities <- sum(HealthMean$mean_fatalities)
-sprintf('Total mean number of fatalities annually: %.1f\n',total_mean_fatalities)
+sprintf('Total mean number of fatalities annually: %.1f',total_mean_fatalities)
 
 kable(arrange(HealthMean,desc(mean_injuries))[1:20,c('EVTYPE','mean_injuries','proportion_injuries')],caption = 'Weather events causing the most injuries, annual mean injuries and percentage of injuries caused by event')
 
@@ -367,7 +375,6 @@ sprintf('Total mean number of injuries annually: %.1f',total_mean_injuries)
 Display results graphically of the events causing the most fatalities and injuries
 
 ``` {r}
-
 ### the (union) of the ten events causing the most fatalities and ten events causing the most injuries
 most_health_events <- union(HealthMean$EVTYPE[1:10],arrange(HealthMean,desc(mean_injuries))$EVTYPE[1:10])
 
@@ -397,7 +404,7 @@ ggplot(data=HealthImpact, aes(x = EVTYPE, y = proportion, fill = harm)) +
 
 ```
 
-## Which types of events have the greatest economic consequences?
+### Which types of events have the greatest economic consequences?
 
 Rank the twenty events with the greatest value of property or crop damage per year
 Economic damage information is stored in **PropertyValue** and **CropValue**.
@@ -425,15 +432,15 @@ DamageMean <- DamageSum %>%
   mutate(proportion_combined = mean_combined/sum(mean_combined)*100) %>%
   arrange(desc(mean_property))
 
-kable(DamageMean[1:20,c('EVTYPE','mean_property','proportion_property')], caption = 'Weather events causing most property damage, annual mean proeprty damage, and percentage of property damage caused by event')
+kable(DamageMean[1:20,c('EVTYPE','mean_property','proportion_property')], caption = 'Weather events causing most property damage, annual mean property damage, and percentage of property damage caused by event')
 
 total_mean_property <- sum(DamageMean$mean_property)
-sprintf('Total mean value of property damage annually: $%.0f\n',total_mean_property)
+sprintf('Total mean value of property damage annually: $%.0f',total_mean_property)
 
 kable(arrange(DamageMean,desc(mean_crop))[1:20,c('EVTYPE','mean_crop','proportion_crop')],caption = 'Weather events causing the most crop damage, annual mean crop damage and percentage of crop damage caused by event')
 
 total_mean_crop <- sum(DamageMean$mean_crop)
-sprintf('Total mean value of crop damage annually: $%.0f\n',total_mean_crop)
+sprintf('Total mean value of crop damage annually: $%.0f',total_mean_crop)
 
 kable(arrange(DamageMean,desc(mean_combined))[1:20,c('EVTYPE','mean_combined','proportion_combined')],caption = 'Weather events causing the most economic damage, annual mean economic damage and percentage of economic damage caused by event')
 
