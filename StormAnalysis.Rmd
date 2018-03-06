@@ -20,6 +20,7 @@ The data for this assignment is Storm Data from the National Weather Service. Do
 ### start necessary libraries
 library(tidyverse)
 library(dplyr)
+library(lubridate)
 library(ggplot2)
 
 ### set figure save path to figure/
@@ -62,6 +63,20 @@ CROPDMGEXP  | crop damage dollar multiplier (K thousands, M millions, B billions
 REFNUM      | unique reference number for event
 
 
+### Extract times of storm commencement
+
+Extract time information from *BGN_DATE*, *BGN_TIME* and *TIME_ZONE*, and store in *BEGIN_TIME*.
+
+``` {r}
+
+StormData$BEGIN_TIME <- strptime(paste(sub(' .*','',StormData$BGN_DATE),
+                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
+```
+
+*TIME_ZONE* information, in particular, requires tidying up and adjustment.
+
+List all current timezones, and standardize capitalization
+
 ``` {r}
 print(unique(StormData$TIME_ZONE))
 ```
@@ -72,30 +87,77 @@ StormData$TIME_ZONE <- as.factor(toupper(StormData$TIME_ZONE))
 
 ```
 
-```{r}
-print(StormData[StormData$TIME_ZONE == 'UNK', c('COUNTYNAME','STATE','REFNUM')])
-```
-``` {r}
-### replace missing timezones
+List records with dubious timezone names
 
+```{r, echo=TRUE}
+print(StormData[StormData$TIME_ZONE %in% c('UNK','CSC','ESY','SCT'), c('COUNTYNAME','STATE','TIME_ZONE','REFNUM')])
+```
+
+Fill in corrected timezones.
+
+Convert 'daylight saving' timezones to 'standard' timezones, as Lubridate adjusts for daylight saving times automatically.
+
+``` {r}
+### replace missing timezones 'UNK'
 ### Oconee County, Georgia
-StormData[REFNUM == 23087,]$TIME_ZONE <- 'EST'
+StormData[StormData$REFNUM == 23087,]$TIME_ZONE <- 'EST'
 ### Hawaii country, Hawaii
-StormData[REFNUM == 27702,]$TIME_ZONE <- 'HST'
+StormData[StormData$REFNUM == 27702,]$TIME_ZONE <- 'HST'
 ### Coles county, Illinois
-StormData[REFNUM == 30669,]$TIME_ZONE <- 'CST'
+StormData[StormData$REFNUM == 30669,]$TIME_ZONE <- 'CST'
+### Rush County, Indiana
+StormData[StormData$REFNUM == 35244,]$TIME_ZONE <- 'EST'
+### Hampden County, Massachusetts
+StormData[StormData$REFNUM == 67899,]$TIME_ZONE <- 'EST'
+### Love County, Oklahoma
+StormData[StormData$REFNUM == 120704,]$TIME_ZONE <- 'CST'
+### Perkins County, South Dakota
+StormData[StormData$REFNUM == 143198,]$TIME_ZONE <- 'MST'
+### McLennan County, Texas
+StormData[StormData$REFNUM == 154637,]$TIME_ZONE <- 'CST'
+### Armstrong, Texas
+StormData[StormData$REFNUM == 160236,]$TIME_ZONE <- 'CST'
 
+### Chickasaw, Mississippi. likely mistaken timezone 'CSC'
+StormData[StormData$REFNUM == 200720,]$TIME_ZONE <- 'CST'
+### Cambria, Pennsylvania, likely mistaken timezone 'ESY'
+StormData[StormData$REFNUM == 229824,]$TIME_ZONE <- 'EST'
+### Shawano, Wisconsin, likely mistaken timezone 'SCT'
+StormData[StormData$REFNUM == 247612,]$TIME_ZONE <- 'CST'
+### IAZ033, Indiana, likely mistaken timezone 'SCT'
+StormData[StormData$REFNUM == 201257,]$TIME_ZONE <- 'EST'
+
+### convert daylight saving timezones to 'standard' time
+StormData[StormData$TIME_ZONE == 'ADT',]$TIME_ZONE <- 'AST'
+StormData[StormData$TIME_ZONE == 'CDT',]$TIME_ZONE <- 'CST'
+StormData[StormData$TIME_ZONE == 'EDT',]$TIME_ZONE <- 'EST'
+StormData[StormData$TIME_ZONE == 'MDT',]$TIME_ZONE <- 'MST'
+StormData[StormData$TIME_ZONE == 'PDT',]$TIME_ZONE <- 'PST'
 
 ```
+
+Finally, adjust *BEGIN_TIME* according to *TIME_ZONE*.
 
 ``` {r}
-timezones <- c(-3,-9,-4,-5,-9,-5,-6)
-names(timezones) <- c('ADT','AKS','AST','CDT','HST','EST','CST')
+
+StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME), tzone = 'America/Anchorage')
+StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME), tzone = 'America/Halifax')
+StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME), tzone = 'America/Chicago')
+StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME), tzone = 'America/New_York')
+StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME), tzone = 'Pacific/Honolulu')
+StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME), tzone = 'America/Denver')
+StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME), tzone = 'America/Los_Angeles')
+StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME <- 
+  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME), tzone = 'Pacific/Samoa')
+### other timezones 'GMT', 'GST', and 'UTC' all appear to be UTC+0, and so left alone
+
 ```
 
-``` {r}
 
-StormData$BEGIN_TIME <- strptime(paste(sub(' .*','',StormData$BGN_DATE),
-                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
-
-```
