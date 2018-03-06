@@ -69,8 +69,17 @@ Extract time information from *BGN_DATE*, *BGN_TIME* and *TIME_ZONE*, and store 
 
 ``` {r}
 
-StormData$BEGIN_TIME <- strptime(paste(sub(' .*','',StormData$BGN_DATE),
-                                       StormData$BGN_TIME),'%m/%d/%Y %H%M')
+### Information in BGN_TIME is not consistently stored
+### some are in four-digit format e.g. '0000', '1300', '2350'. there is even one three-digit '000'
+### others are in 11-character format e.g. '03:25:00 PM'
+### convert all to 11-character format
+
+StormData$BGN_TIME <- ifelse(str_length(StormData$BGN_TIME)<=4,
+                             strftime(strptime(StormData$BGN_TIME,'%H%M'),'%I:%M:%S %p'),
+                             as.character(StormData$BGN_TIME))
+
+StormData$BEGIN_TIME <- as.POSIXct(strptime(paste(sub(' .*','',StormData$BGN_DATE),
+                                       StormData$BGN_TIME),'%m/%d/%Y %I:%M:%S %p'))
 ```
 
 *TIME_ZONE* information, in particular, requires tidying up and adjustment.
@@ -136,28 +145,40 @@ StormData[StormData$TIME_ZONE == 'PDT',]$TIME_ZONE <- 'PST'
 
 ```
 
-Finally, adjust *BEGIN_TIME* according to *TIME_ZONE*.
+Adjust *BEGIN_TIME* according to *TIME_ZONE*.
 
 ``` {r}
 
 StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME), tzone = 'America/Anchorage')
+  force_tz(StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME, tzone = 'America/Anchorage')
 StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME), tzone = 'America/Halifax')
+  force_tz(StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME, tzone = 'America/Halifax')
 StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME), tzone = 'America/Chicago')
+  force_tz(StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME, tzone = 'America/Chicago')
 StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME), tzone = 'America/New_York')
+  force_tz(StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME, tzone = 'America/New_York')
 StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME), tzone = 'Pacific/Honolulu')
+  force_tz(StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME, tzone = 'Pacific/Honolulu')
 StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME), tzone = 'America/Denver')
+  force_tz(StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME, tzone = 'America/Denver')
 StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME), tzone = 'America/Los_Angeles')
+  force_tz(StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME, tzone = 'America/Los_Angeles')
 StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME <- 
-  force_tz(as.POSIXct(StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME), tzone = 'Pacific/Samoa')
+  force_tz(StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME, tzone = 'Pacific/Samoa')
 ### other timezones 'GMT', 'GST', and 'UTC' all appear to be UTC+0, and so left alone
 
 ```
 
+Data has been collected from 1950 to 2011. Has data been consistently collected during this time?
+View the number of events recorded annually from 1950 to 2011.
 
+``` {r}
+
+yearly.event.count <- StormData %>%
+  mutate(event.year = year(BEGIN_TIME)) %>%
+  group_by(event.year) %>%
+  summarise(events = n())
+
+
+
+```
