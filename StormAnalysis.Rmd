@@ -21,6 +21,7 @@ The data for this assignment is Storm Data from the National Weather Service. Do
 library(tidyverse)
 library(dplyr)
 library(lubridate)
+library(rlist)
 library(ggplot2)
 
 ### set figure save path to figure/
@@ -251,17 +252,44 @@ and the total event count (the total event count includes both 'common' and 'unc
 
 ``` {r}
 
+# the ten most frequent events
 most.frequent.events <- as.list(as.character(frequent.events[1:10,]$EVTYPE))
 
+# count the events in 'most.frequent.events' in each year of recording
 frequent.event.count <- StormData %>%
   filter(EVTYPE %in% most.frequent.events) %>%
   mutate(event.year = year(BEGIN_TIME)) %>%
   group_by(event.year, EVTYPE) %>%
   summarise(events = n())
 
+# and the total events for each year
 yearly.event.count <- StormData %>%
   mutate(event.year = year(BEGIN_TIME)) %>%
   group_by(event.year) %>%
   summarise(events = n())
+
+yearly.event.count[,'EVTYPE'] <- 'TOTAL'
+
+event.count <- bind_rows(frequent.event.count,yearly.event.count)
+
+# 'normalize the events' to the frequency observed in 2011
+# store the normalized event count in 'event.norm'
+event.count[,'event.norm'] <- NA
+
+for (event in list.append(most.frequent.events,'TOTAL')) {
+  event.2011.count <- with(event.count, events[EVTYPE == event & event.year == 2011])
+  for (year in with(event.count, event.year[EVTYPE == event])) {
+    index <- with(event.count,(EVTYPE == event) & (event.year == year))
+    event.count$event.norm[index] <- (event.count$events[index]/event.2011.count)
+  }
+}
+
+ggplot(data=event.count,aes(x=event.year,y=event.norm,group=EVTYPE, colour=EVTYPE)) +
+  geom_line()+geom_point() +
+  labs(title = "Ten most frequent storm events by year, and total events, from 1950 to 2011",
+       subtitle = "NOAA storm database. Yearly event frequency in comparison to 2011 event frequency") +
+  labs(x = "Year", y = "Frequency in comparison to 2011 frequency") +
+  theme(legend.position=c(0.2,0.7))
+
 
 ```
