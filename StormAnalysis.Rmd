@@ -65,7 +65,7 @@ REFNUM      | unique reference number for event
 
 ### Extract times of storm commencement
 
-Extract time information from *BGN_DATE*, *BGN_TIME* and *TIME_ZONE*, and store in *BEGIN_TIME*.
+Extract time information from **BGN_DATE**, **BGN_TIME** and **TIME_ZONE**, and store in **BEGIN_TIME**.
 
 ``` {r}
 
@@ -74,15 +74,33 @@ Extract time information from *BGN_DATE*, *BGN_TIME* and *TIME_ZONE*, and store 
 ### others are in 11-character format e.g. '03:25:00 PM'
 ### convert all to 11-character format
 
-StormData$BGN_TIME <- ifelse(str_length(StormData$BGN_TIME)<=4,
+StormData$BGN_calcTIME <- ifelse(str_length(StormData$BGN_TIME)<=4,
                              strftime(strptime(StormData$BGN_TIME,'%H%M'),'%I:%M:%S %p'),
                              as.character(StormData$BGN_TIME))
+### more times which are in 'invalid' AM/PM format
+### e.g. 15:30:00 PM, or 00:00:10 AM
+### re-interpret these as 24-hour times
+invalid.time.list <- is.na(strptime(StormData$BGN_calcTIME,'%I:%M:%S %p'))
+StormData$BGN_calcTIME[invalid.time.list] <- 
+  strftime(strptime(StormData[invalid.time.list,]$BGN_calcTIME,'%H:%M'), '%I:%M:%S %p')
+
+### some times still remain invalid
+print('Invalid times to be manually adjusted')
+print(StormData[is.na(StormData$BGN_calcTIME),c('BGN_TIME','COUNTYNAME','STATE','REFNUM')])
+### these times are 'impossible' times are 19:90 hr, or sometimes subsituted a '0 (zero)' for 'O (letter)'
+### manually adjust these times, assuming simple transposition or substitution errors
+StormData$BGN_calcTIME[StormData$REFNUM == 197399] <- '07:09:00 PM' ### was 1990
+StormData$BGN_calcTIME[StormData$REFNUM == 223421] <- '12:01:00 AM' ### was 9999
+StormData$BGN_calcTIME[StormData$REFNUM == 244548] <- '08:09:00 PM' ### was 2090
+StormData$BGN_calcTIME[StormData$REFNUM == 247251] <- '03:08:00 PM' ### was 1580
+StormData$BGN_calcTIME[StormData$REFNUM == 247767] <- '05:27:00 AM' ### was 0572
+StormData$BGN_calcTIME[StormData$REFNUM == 248507] <- '01:00:00 PM' ### was 13O0
 
 StormData$BEGIN_TIME <- as.POSIXct(strptime(paste(sub(' .*','',StormData$BGN_DATE),
-                                       StormData$BGN_TIME),'%m/%d/%Y %I:%M:%S %p'))
+                                       StormData$BGN_calcTIME),'%m/%d/%Y %I:%M:%S %p'))
 ```
 
-*TIME_ZONE* information, in particular, requires tidying up and adjustment.
+**TIME_ZONE** information, in particular, requires tidying up and adjustment.
 
 List all current timezones, and standardize capitalization
 
@@ -109,76 +127,141 @@ Convert 'daylight saving' timezones to 'standard' timezones, as Lubridate adjust
 ``` {r}
 ### replace missing timezones 'UNK'
 ### Oconee County, Georgia
-StormData[StormData$REFNUM == 23087,]$TIME_ZONE <- 'EST'
+StormData$TIME_ZONE[StormData$REFNUM == 23087] <- 'EST'
 ### Hawaii country, Hawaii
-StormData[StormData$REFNUM == 27702,]$TIME_ZONE <- 'HST'
+StormData$TIME_ZONE[StormData$REFNUM == 27702] <- 'HST'
 ### Coles county, Illinois
-StormData[StormData$REFNUM == 30669,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 30669] <- 'CST'
 ### Rush County, Indiana
-StormData[StormData$REFNUM == 35244,]$TIME_ZONE <- 'EST'
+StormData$TIME_ZONE[StormData$REFNUM == 35244] <- 'EST'
 ### Hampden County, Massachusetts
-StormData[StormData$REFNUM == 67899,]$TIME_ZONE <- 'EST'
+StormData$TIME_ZONE[StormData$REFNUM == 67899] <- 'EST'
 ### Love County, Oklahoma
-StormData[StormData$REFNUM == 120704,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 120704] <- 'CST'
 ### Perkins County, South Dakota
-StormData[StormData$REFNUM == 143198,]$TIME_ZONE <- 'MST'
+StormData$TIME_ZONE[StormData$REFNUM == 143198] <- 'MST'
 ### McLennan County, Texas
-StormData[StormData$REFNUM == 154637,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 154637] <- 'CST'
 ### Armstrong, Texas
-StormData[StormData$REFNUM == 160236,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 160236] <- 'CST'
 
 ### Chickasaw, Mississippi. likely mistaken timezone 'CSC'
-StormData[StormData$REFNUM == 200720,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 200720] <- 'CST'
 ### Cambria, Pennsylvania, likely mistaken timezone 'ESY'
-StormData[StormData$REFNUM == 229824,]$TIME_ZONE <- 'EST'
+StormData$TIME_ZONE[StormData$REFNUM == 229824] <- 'EST'
 ### Shawano, Wisconsin, likely mistaken timezone 'SCT'
-StormData[StormData$REFNUM == 247612,]$TIME_ZONE <- 'CST'
+StormData$TIME_ZONE[StormData$REFNUM == 247612] <- 'CST'
 ### IAZ033, Indiana, likely mistaken timezone 'SCT'
-StormData[StormData$REFNUM == 201257,]$TIME_ZONE <- 'EST'
+StormData$TIME_ZONE[StormData$REFNUM == 201257] <- 'EST'
 
 ### convert daylight saving timezones to 'standard' time
-StormData[StormData$TIME_ZONE == 'ADT',]$TIME_ZONE <- 'AST'
-StormData[StormData$TIME_ZONE == 'CDT',]$TIME_ZONE <- 'CST'
-StormData[StormData$TIME_ZONE == 'EDT',]$TIME_ZONE <- 'EST'
-StormData[StormData$TIME_ZONE == 'MDT',]$TIME_ZONE <- 'MST'
-StormData[StormData$TIME_ZONE == 'PDT',]$TIME_ZONE <- 'PST'
+StormData$TIME_ZONE[StormData$TIME_ZONE == 'ADT'] <- 'AST'
+StormData$TIME_ZONE[StormData$TIME_ZONE == 'CDT'] <- 'CST'
+StormData$TIME_ZONE[StormData$TIME_ZONE == 'EDT'] <- 'EST'
+StormData$TIME_ZONE[StormData$TIME_ZONE == 'MDT'] <- 'MST'
+StormData$TIME_ZONE[StormData$TIME_ZONE == 'PDT'] <- 'PST'
 
 ```
 
-Adjust *BEGIN_TIME* according to *TIME_ZONE*.
+Adjust **BEGIN_TIME** according to **TIME_ZONE**.
 
 ``` {r}
 
+### adjust time zones. roll=TRUE prevents 'NA' times as result of daylight savings
 StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME, tzone = 'America/Anchorage')
+  force_tz(StormData[StormData$TIME_ZONE == 'AKS',]$BEGIN_TIME, tzone = 'America/Anchorage', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME, tzone = 'America/Halifax')
+  force_tz(StormData[StormData$TIME_ZONE == 'AST',]$BEGIN_TIME, tzone = 'America/Halifax', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME, tzone = 'America/Chicago')
+  force_tz(StormData[StormData$TIME_ZONE == 'CST',]$BEGIN_TIME, tzone = 'America/Chicago', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME, tzone = 'America/New_York')
+  force_tz(StormData[StormData$TIME_ZONE == 'EST',]$BEGIN_TIME, tzone = 'America/New_York', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME, tzone = 'Pacific/Honolulu')
+  force_tz(StormData[StormData$TIME_ZONE == 'HST',]$BEGIN_TIME, tzone = 'Pacific/Honolulu', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME, tzone = 'America/Denver')
+  force_tz(StormData[StormData$TIME_ZONE == 'MST',]$BEGIN_TIME, tzone = 'America/Denver', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME, tzone = 'America/Los_Angeles')
+  force_tz(StormData[StormData$TIME_ZONE == 'PST',]$BEGIN_TIME, tzone = 'America/Los_Angeles', roll = TRUE)
 StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME <- 
-  force_tz(StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME, tzone = 'Pacific/Samoa')
+  force_tz(StormData[StormData$TIME_ZONE == 'SST',]$BEGIN_TIME, tzone = 'Pacific/Samoa', roll = TRUE)
 ### other timezones 'GMT', 'GST', and 'UTC' all appear to be UTC+0, and so left alone
 
 ```
 
-Data has been collected from 1950 to 2011. Has data been consistently collected during this time?
-View the number of events recorded annually from 1950 to 2011.
+# Event synonyms
+
+Some events in **EVTYPE** which appear to be the same are recorded with different names (synonyms)
+
+e.g. 'TSTM WIND', 'THUNDERSTORM WIND', 'THUNDERSTORM WINDS'
+
+These synonyms should be merged.
+
+In this section 'close' synonyms will not be merged e.g. 'MARINE THUNDERSTORM WIND' will not be merged with 'THUNDERSTORM WIND', 'THUNDERSTORM WIND/HAIL' will not be merged into 'THUNDERSTORM WIND' and 'STRONG WIND' will
+not be merged into 'WIND', although arguably some of these close synonyms are the same.
+
 
 ``` {r}
+
+### Most revents are recorded in capitals ('upper case'), but some are recorded in mixed (upper and lower) case
+### Covert all to upper case, strip all numbers, periods and trailing/leading whitespace
+### numbers and parentheses are often used to describe sub-types within an event type e.g. size of hail
+### there are some subtypes which are not yet merged with this logic e.g. 'G45' sub-types
+StormData$EVTYPE <- as.factor(toupper(trimws(gsub('[0-9,.,(,)]+','',StormData$EVTYPE))))
+
+### list of synonyms
+synonyms <- list(c('THUNDERSTORM WIND','TSTM WIND','THUNDERSTORM WINDS','THUNDERSTORM WINDSS','THUNDERSTORMS WINDS','THUNDERSTROM WIND','THUNDERTSORM WIND','THUNERSTORM WINDS','TUNDERSTORM WIND','THUNDERSTORM WINS','TSTM WND'),
+                 c('MARINE THUNDERSTORM WIND','MARINE TSTM WIND','MARINE TSTM WINDS'),
+                 c('HIGH WIND','STRONG WIND','HIGH WINDS','STRONG WINDS'),
+                 c('FLASH FLOOD','FLASH FLOODING','FLASH FLOODS'),
+                 c('FLOOD','FLOODING'),
+                 c('URBAN FLOOD','URBAN FLOODING'),
+                 c('WILDFIRE','WILD/FOREST FIRE'),
+                 c('RECORD HEAT','RECORD WARMTH'),
+                 c('THUNDERSTORM WINDS HAIL','TSTM WIND/HAIL','THUNDERSTORM WINDS/HAIL'),
+                 c('WIND GUSTS','GUSTY WIND'),
+                 c('TORRENTIAL RAIN','TORRENTIAL RAINFALL'),
+                 c('TORNADO','TORNADOS','TORNDAO'),
+                 c('WIND','WND'),
+                 c('THUNDERSTORM','THUNDERSTORMS'))
+
+### merge synonyms into one synonym
+for (events in synonyms) {
+  StormData[as.character(StormData$EVTYPE) %in% events,]$EVTYPE <- events[1]
+}
+```
+
+### Finding data which appears to have been collected consistently with the most recent years
+
+Data has been collected from 1950 to 2011. Has data been consistently collected during this time?
+Compare the change in events recorded annually from 1950 to 2011, including the total number of
+events and the five most commonly recorded events.
+
+``` {r}
+### find the most common event types
+frequent.events <- StormData %>%
+  count(EVTYPE) %>%
+  arrange(desc(n))
+
+# show the twenty most frequent event types
+print(head(frequent.events,20))
+```
+
+Plot the yearly event count for the top ten events,
+and the total event count (the total event count includes both 'common' and 'uncommon' events)
+
+``` {r}
+
+most.frequent.events <- as.list(as.character(frequent.events[1:10,]$EVTYPE))
+
+frequent.event.count <- StormData %>%
+  filter(EVTYPE %in% most.frequent.events) %>%
+  mutate(event.year = year(BEGIN_TIME)) %>%
+  group_by(event.year, EVTYPE) %>%
+  summarise(events = n())
 
 yearly.event.count <- StormData %>%
   mutate(event.year = year(BEGIN_TIME)) %>%
   group_by(event.year) %>%
   summarise(events = n())
-
-
 
 ```
