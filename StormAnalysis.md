@@ -1,17 +1,19 @@
 # Reproducible Research: Peer Assessment 2
 
-# Storm events most harmful to population health and economic damage in the United States, 1997 to 2011
+# Weather events most harmful to population health and economic damage in the United States, 1997 to 2011
 
 ## Synopsis
 
-The three major causes of storm-related mortality and morbidity in the United States are **excessive heat** (18.0%), **tornados** (15.2%) and **flash flooding** (8.1%). Similar events are also among the three major causes of storm-related injuries (**tornados** 33.0%, **flood** 11.2% and **excessive heat** 10.5%).
+The three major causes of weather-related mortality and morbidity in the United States are **excessive heat** (18.0%), **tornados** (15.2%) and **flash flooding** (8.1%). Similar events are also among the three major causes of storm-related injuries (**tornados** 33.0%, **flood** 11.2% and **excessive heat** 10.5%).
 
-Total storm-related fatalities are approximately 650 deaths annually.
+Total weather-related fatalities are approximately 650 deaths annually.
 There are approximately 4025 storm-related injuries annually.
 
-The three storm-related events causing the most economic damage are **flood** (34.3%), **hurricanes** (21.2%) and **storm surges** (15.0%). Total annual economic damage totals approximately $28.7 billion per year.
+The three weather-related events causing the most economic damage are **flood** (34.3%), **hurricanes** (21.2%) and **storm surges** (15.0%). Total annual economic damage totals approximately $28.7 billion per year.
 
-Crop damage, which is a subset of total economic damage, is also significantly affected by **drought**, which causes about 36% of the total $2.4 billion of storm-related crop damage occurring annually.
+Crop damage, which is a subset of total economic damage, is also significantly affected by **drought**, which causes about 36% of the total $2.4 billion of weather-related crop damage occurring annually.
+
+Data sourced from NOAA (National Weather Service), 1950-2011.
 
 ## Data Processing
 
@@ -22,6 +24,7 @@ library(tidyverse)
 library(dplyr)
 library(lubridate)
 library(rlist)
+library(gdata)
 library(ggplot2)
 library(knitr)
 
@@ -32,7 +35,9 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8)
 
 ### Download data
 
-Storm Data is from the National Weather Service. Documentation for the data can be found at the [National Weather Service](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+Storm Data is from the National Weather Service.
+
+Documentation for the data can be found at the [National Weather Service](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) and [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
 
 Data comes in the form of a comma-separated-value file compressed via the bzip2 algorithm.
 
@@ -56,7 +61,7 @@ BGN_DATE    | date of event starting
 BGN_TIME    | time of event starting
 TIME_ZONE   | time zone of event
 COUNTYNAME  | name of county
-STATE       | state of the United STates
+STATE       | state of the United States
 EVTYPE      | type of event
 FATALITIES  | number of fatalities        
 INJURIES    | number of injuries
@@ -406,7 +411,7 @@ ggplot(data=event.count,aes(x=event.year,y=event.norm,group=EVTYPE, colour=EVTYP
 ![](figure/unnamed-chunk-12-1.png)<!-- -->
 
 Many of the frequent events are not recorded in the current form until at the mid-1990s.
-'MARINE THUNEDERSTORM WIND' is not even recorded until 2001.
+'MARINE THUNDERSTORM WIND' is not even recorded until 2001.
 
 Restrict data analysis from 1997 to 2011 (fifteen years in total)
 
@@ -537,6 +542,29 @@ HealthImpact <- HealthMean %>%
   select(one_of('EVTYPE','Injuries','Fatalities')) %>%
   gather(key = 'harm', value = 'proportion', Injuries, Fatalities)
 
+# arrange factors by fatality order
+HealthImpact$EVTYPE = reorder.factor(HealthImpact$EVTYPE, new.order = arrange(HealthMean,mean_fatalities)$EVTYPE)
+arrange(HealthImpact, EVTYPE)
+```
+
+```
+## # A tibble: 26 x 3
+##    EVTYPE    harm       proportion
+##    <fct>     <chr>           <dbl>
+##  1 WILDFIRE  Injuries       -2.36 
+##  2 WILDFIRE  Fatalities      0.888
+##  3 HURRICANE Injuries       -2.32 
+##  4 HURRICANE Fatalities      0.973
+##  5 FOG       Injuries       -2.38 
+##  6 FOG       Fatalities      1.27 
+##  7 AVALANCHE Injuries       -0.250
+##  8 AVALANCHE Fatalities      2.22 
+##  9 HIGH WIND Injuries       -2.10 
+## 10 HIGH WIND Fatalities      3.21 
+## # ... with 16 more rows
+```
+
+```r
 subtitle <- sprintf('Data from NOAA storm database 1997 to 2011\n
                     Total mean fatalities per year : %.1f\n
                     Total mean injuries per year : %.1f',
@@ -719,6 +747,10 @@ DamageImpact <- DamageMean %>%
   select(one_of('EVTYPE','Property','Crop','Combined')) %>%
   gather(key = 'damage', value = 'proportion', Property, Crop, Combined)
 
+### order the event types by the 'mean_combined' economic impact
+DamageImpact$EVTYPE <- reorder.factor(DamageImpact$EVTYPE, new.order = arrange(DamageMean,mean_combined)$EVTYPE)
+DamageImpact <- arrange(DamageImpact,EVTYPE)
+
 subtitle <- sprintf('Data from NOAA storm database 1997 to 2011\n
                     Total mean property damage per year \t: $%12.0f\n
                     Total mean crop damage per year \t\t: $%12.0f\n
@@ -732,7 +764,7 @@ ggplot(data=DamageImpact, aes(x = EVTYPE, y = proportion, fill = damage)) +
        subtitle = subtitle) +
   labs(x = "Event", y = "Percentage proportion of property, crop or combined value of loss") +
   guides(fill = guide_legend(title="")) +
-  theme(legend.position=c(0.8,0.5)) +
+  theme(legend.position=c(0.8,0.6)) +
   coord_flip()
 ```
 
